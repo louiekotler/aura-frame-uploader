@@ -109,21 +109,24 @@ def cmd_upload(args, cfg):
     if args.local_id and len(paths) > 1:
         raise AuraError("--local-id applies to a single file, but multiple were found.")
 
-    existing = set()
+    # Identifier -> asset id, so a skip can still report which asset already
+    # holds this photo. Callers need that id to record the photo as published.
+    existing = {}
     if not args.force:
         existing = {
-            a.get("local_identifier") for a in client.all_assets(frame_id)
+            a.get("local_identifier"): a.get("id") for a in client.all_assets(frame_id)
         }
 
     print(f"{len(paths)} image(s) -> frame {frame_id} via {backend.name}")
     if args.dry_run:
         print("(dry run — nothing will be uploaded)\n")
 
-    results, failures, skipped = [], 0, 0
+    results, failures, skipped = [], 0, []
     for i, path in enumerate(paths, 1):
         local_id = args.local_id or images.content_identifier(path)
         if local_id in existing and not args.force:
-            skipped += 1
+            skipped.append({"local_identifier": local_id, "asset_id": existing[local_id],
+                            "path": str(path)})
             print(f"  [{i}/{len(paths)}] {path.name}: already on the frame, skipping")
             continue
         try:
@@ -161,7 +164,7 @@ def cmd_upload(args, cfg):
         if args.delay and i < len(paths):
             time.sleep(args.delay)
 
-    print(f"\nuploaded {len(results)}  skipped {skipped}  failed {failures}")
+    print(f"\nuploaded {len(results)}  skipped {len(skipped)}  failed {failures}")
     if args.json:
         _emit({"frame_id": frame_id, "uploaded": results,
                "skipped": skipped, "failed": failures}, True)
