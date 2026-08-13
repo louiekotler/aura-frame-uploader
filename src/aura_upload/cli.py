@@ -71,8 +71,8 @@ def cmd_frames(args, cfg):
 
 
 def cmd_list(args, cfg):
-    client = AuraClient.from_keyring()
     frame_id = cfg.resolve_frame(args.frame)
+    client = AuraClient.from_keyring()
     assets = client.all_assets(frame_id)
     matched = [
         a for a in assets
@@ -92,8 +92,10 @@ def cmd_list(args, cfg):
 
 
 def cmd_upload(args, cfg):
-    client = AuraClient.from_keyring()
+    # Resolve the frame before anything else so a refused target fails fast,
+    # independently of whether there is a usable session.
     frame_id = cfg.resolve_frame(args.frame)
+    client = AuraClient.from_keyring()
     backend = BACKENDS[args.backend](client)
 
     target = Path(args.path).expanduser()
@@ -167,8 +169,8 @@ def cmd_upload(args, cfg):
 
 
 def cmd_remove(args, cfg):
-    client = AuraClient.from_keyring()
     frame_id = cfg.resolve_frame(args.frame)
+    client = AuraClient.from_keyring()
     failed = client.remove_asset(
         frame_id, local_identifier=args.local_id, asset_id=args.asset_id
     )
@@ -179,8 +181,8 @@ def cmd_remove(args, cfg):
 
 
 def cmd_show(args, cfg):
-    client = AuraClient.from_keyring()
     frame_id = cfg.resolve_frame(args.frame)
+    client = AuraClient.from_keyring()
     asset_id = args.asset_id
     if not asset_id:
         asset = client.asset_for_local_identifier(args.local_id)
@@ -201,13 +203,21 @@ def cmd_whoami(args, cfg):
 
 
 def build_parser() -> argparse.ArgumentParser:
+    # Accepted either side of the subcommand. SUPPRESS keeps the subparser copy
+    # from overwriting a value already given before the subcommand.
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                        help="machine-readable output")
+    common.add_argument("-v", "--verbose", action="store_true",
+                        default=argparse.SUPPRESS)
+
     p = argparse.ArgumentParser(
         prog="aura-upload",
         description="Publish photos to an Aura digital picture frame.",
+        parents=[common],
     )
-    p.add_argument("--json", action="store_true", help="machine-readable output")
-    p.add_argument("-v", "--verbose", action="store_true")
-    sub = p.add_subparsers(dest="command", required=True)
+    sub = p.add_subparsers(dest="command", required=True, parser_class=lambda **kw:
+                           argparse.ArgumentParser(parents=[common], **kw))
 
     lg = sub.add_parser("login", help="authenticate and store a token in the keyring")
     lg.add_argument("--email")
@@ -260,12 +270,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    args.json = getattr(args, "json", False)
     logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
+        level=logging.DEBUG if getattr(args, "verbose", False) else logging.WARNING,
         format="%(levelname)s %(message)s",
     )
-    if not hasattr(args, "json"):
-        args.json = False
     try:
         return args.func(args, load_config())
     except AuraError as e:
