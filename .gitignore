@@ -1,0 +1,15 @@
+# Local configuration holds frame ids and per-frame email addresses.
+config.toml
+*.sqlite
+*.sqlite3
+
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+
+.DS_Store

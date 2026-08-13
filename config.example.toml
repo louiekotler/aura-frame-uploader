@@ -1,0 +1,22 @@
+# Copy to ~/.config/aura-upload/config.toml and fill in.
+# Run `aura-upload frames` to see the ids on your account.
+
+# Every write is refused unless the target frame is listed here. This is the
+# tool's main safety control: an Aura account often includes frames belonging to
+# other people, and the same credentials can write to all of them. Leaving this
+# empty means nothing can be published, which is the intended default.
+allowed_frame_ids = [
+    # "00000000-0000-0000-0000-000000000000",
+]
+
+[account]
+# Saves typing --email on `aura-upload login`.
+email = "you@example.com"
+
+[defaults]
+# Used when --frame is omitted. Must appear in allowed_frame_ids.
+# frame_id = "00000000-0000-0000-0000-000000000000"
+
+# Aura's own web uploader resizes to 2048 on the long edge.
+max_long_edge = 2048
+jpeg_quality = 90
