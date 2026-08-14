@@ -22,5 +22,6 @@ class Backend(ABC):
     name = "base"
 
     @abstractmethod
-    def upload(self, image: PreparedImage, local_identifier: str, frame_id: str) -> AssetRef:
+    def upload(self, image: PreparedImage, local_identifier: str, frame_id: str,
+               fit: bool = False) -> AssetRef:
         ...

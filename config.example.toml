@@ -20,3 +20,17 @@ email = "you@example.com"
 # Aura's own web uploader resizes to 2048 on the long edge.
 max_long_edge = 2048
 jpeg_quality = 90
+
+# How photos are presented when their shape doesn't match the panel.
+#
+#   crop — the frame fills the panel and cuts the overhang. Nothing is added,
+#          but edges of the composition are lost.
+#   fit  — the whole photo is marked visible, so the frame letterboxes it. The
+#          bars follow the frame's own letterbox_style setting (Aura's default
+#          fills them with a blurred copy of the photo).
+#
+# Nothing is baked into the uploaded file either way — this only sets how the
+# frame presents it, and can be changed per photo later in the Aura app.
+[display]
+landscape = "crop"
+portrait = "fit"

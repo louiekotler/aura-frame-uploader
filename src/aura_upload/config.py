@@ -32,14 +32,27 @@ def config_path() -> Path:
     return Path(override) if override else config_dir() / "config.toml"
 
 
+# How a photo whose shape differs from the panel is presented.
+#   crop — leave it to the frame, which fills the panel and cuts the overhang
+#   fit  — mark the whole image as the visible area, so the frame letterboxes
+#          it (the bars follow the frame's own letterbox_style setting)
+FIT_MODES = ("crop", "fit")
+
+
 @dataclass
 class Config:
     allowed_frame_ids: list[str] = field(default_factory=list)
     default_frame_id: str | None = None
     max_long_edge: int = DEFAULT_MAX_LONG_EDGE
     jpeg_quality: int = DEFAULT_JPEG_QUALITY
+    landscape_display: str = "crop"
+    portrait_display: str = "fit"
     account_email: str | None = None
     path: Path | None = None
+
+    def display_mode(self, width: int, height: int) -> str:
+        """Which rule applies to an image of this shape. Squares count as landscape."""
+        return self.portrait_display if height > width else self.landscape_display
 
     def resolve_frame(self, requested: str | None) -> str:
         """Return the frame id to write to, or refuse.
@@ -92,11 +105,21 @@ def load_config(path: Path | None = None) -> Config:
         raise ConfigError(f"{path}: allowed_frame_ids must be a list of strings.")
 
     defaults = raw.get("defaults", {}) or {}
+    display = raw.get("display", {}) or {}
+    for key in ("landscape", "portrait"):
+        if key in display and display[key] not in FIT_MODES:
+            raise ConfigError(
+                f"{path}: display.{key} must be one of {', '.join(FIT_MODES)}, "
+                f"not {display[key]!r}."
+            )
+
     cfg = Config(
         allowed_frame_ids=allowed,
         default_frame_id=defaults.get("frame_id"),
         max_long_edge=int(defaults.get("max_long_edge", DEFAULT_MAX_LONG_EDGE)),
         jpeg_quality=int(defaults.get("jpeg_quality", DEFAULT_JPEG_QUALITY)),
+        landscape_display=display.get("landscape", "crop"),
+        portrait_display=display.get("portrait", "fit"),
         account_email=raw.get("account", {}).get("email"),
         path=path,
     )

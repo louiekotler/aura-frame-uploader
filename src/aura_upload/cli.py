@@ -10,7 +10,7 @@ from pathlib import Path
 from . import images
 from .auth import load_session, login, logout
 from .client import AuraClient
-from .config import load_config
+from .config import FIT_MODES, load_config
 from .errors import AuraError
 from .backends.api import ApiBackend
 
@@ -142,8 +142,10 @@ def cmd_upload(args, cfg):
                                 "dry_run": True})
                 continue
 
-            ref = backend.upload(prepared, local_id, frame_id)
-            print(label + f"  -> {ref.asset_id}")
+            mode = args.landscape if prepared.width >= prepared.height else args.portrait
+            mode = mode or cfg.display_mode(prepared.width, prepared.height)
+            ref = backend.upload(prepared, local_id, frame_id, fit=(mode == "fit"))
+            print(label + f"  [{mode}] -> {ref.asset_id}")
             results.append(
                 {
                     "path": str(path),
@@ -151,6 +153,7 @@ def cmd_upload(args, cfg):
                     "asset_id": ref.asset_id,
                     "sha256": prepared.sha256,
                     "taken_at": prepared.taken_at,
+                    "display": mode,
                 }
             )
         except AuraError as e:
@@ -246,6 +249,10 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--keep-going", action="store_true", help="continue past failures")
     up.add_argument("--delay", type=float, default=0.0, help="seconds between uploads")
     up.add_argument("--max", type=int, help="stop after this many files")
+    up.add_argument("--landscape", choices=FIT_MODES,
+                    help="override how wide photos are presented")
+    up.add_argument("--portrait", choices=FIT_MODES,
+                    help="override how tall photos are presented")
     up.set_defaults(func=cmd_upload)
 
     ls = sub.add_parser("list", help="list what is actually on a frame")

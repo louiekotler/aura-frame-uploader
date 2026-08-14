@@ -120,6 +120,31 @@ class AuraClient:
         )
         return body.get("number_failed", 0)
 
+    def set_visible_area(self, asset_id: str, local_identifier: str,
+                         width: int, height: int, rotation_cw: int = 0) -> dict:
+        """Mark the whole image as the visible area, so the frame letterboxes it.
+
+        Without this Aura computes its own rect and crops to fill the panel.
+        Setting the rect to the full image is what the Aura app does when you
+        choose to see the entire photo; the frame then pads the sides according
+        to its letterbox_style.
+        """
+        rect = f"0,0,{width},{height}"
+        return self._request(
+            "POST",
+            "/assets/crop.json",
+            json={
+                "id": asset_id,
+                "local_identifier": local_identifier,
+                "user_id": self.user_id,
+                "rotation_cw": rotation_cw,
+                "user_landscape_rect": rect,
+                "user_landscape_16_10_rect": rect,
+                "user_portrait_rect": rect,
+                "user_portrait_4_5_rect": rect,
+            },
+        )
+
     def show_asset(self, frame_id: str, asset_id: str) -> bool:
         import uuid
 

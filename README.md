@@ -28,6 +28,29 @@ unofficial and unaffiliated — see [Stability](#stability).
 - Lists what is actually on a frame, removes assets, and can force a specific
   photo onto the screen immediately.
 
+## Photos that don't match the panel's shape
+
+A frame has one shape; your photos have several. By default Aura fills the
+panel and crops whatever overhangs — fine for a wide photo on a wide panel,
+brutal for a tall one, which gets cut to a slice of its middle.
+
+Two presentations, set per orientation:
+
+```toml
+[display]
+landscape = "crop"   # let the frame fill the panel and cut the overhang
+portrait  = "fit"    # show the whole photo, letterboxed
+```
+
+`fit` marks the entire image as the visible area, which is what the Aura app
+does when you ask to see a whole photo. The frame then pads the sides using its
+own `letterbox_style` — by default a blurred copy of the photo itself.
+
+**Nothing is baked into the uploaded file.** Both modes upload identical pixels
+and differ only in how the frame is told to present them, so any photo can be
+changed later in the Aura app without re-uploading. Override per run with
+`--landscape` and `--portrait`.
+
 ## Safety: the frame allowlist
 
 An Aura account frequently includes frames belonging to **other people** —

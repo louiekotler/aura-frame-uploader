@@ -57,7 +57,8 @@ class ApiBackend(Backend):
     def __init__(self, client: AuraClient):
         self.client = client
 
-    def upload(self, image: PreparedImage, local_identifier: str, frame_id: str) -> AssetRef:
+    def upload(self, image: PreparedImage, local_identifier: str, frame_id: str,
+               fit: bool = False) -> AssetRef:
         failed = self.client.select_asset(frame_id, local_identifier)
         if failed:
             raise UploadError(
@@ -87,6 +88,11 @@ class ApiBackend(Backend):
                 "modified_at": aura_timestamp(),
             }
         )
+        if fit:
+            self.client.set_visible_area(
+                success["id"], local_identifier, image.width, image.height
+            )
+
         return AssetRef(
             asset_id=success["id"],
             local_identifier=success.get("local_identifier", local_identifier),
