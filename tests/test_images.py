@@ -145,3 +145,28 @@ def test_aura_timestamp_converts_to_utc():
     tz = timezone(timedelta(hours=-7))
     dt = datetime(2026, 8, 13, 0, 6, 3, 0, tzinfo=tz)
     assert aura_timestamp(dt) == "2026-08-13T07:06:03.000Z"
+
+
+def test_other_date_fields_are_ignored(tmp_path):
+    """Only DateTimeOriginal counts.
+
+    DateTime records when the file was written and DateTimeDigitized when it was
+    scanned; trusting either would date a photo plausibly and wrongly, which is
+    harder to notice than an obviously wrong date.
+    """
+    exif = {"0th": {piexif.ImageIFD.DateTime: b"2020:01:01 00:00:00"},
+            "Exif": {piexif.ExifIFD.DateTimeDigitized: b"2021:01:01 00:00:00"},
+            "GPS": {}, "1st": {}, "thumbnail": None}
+    p = make_jpeg(tmp_path / "other.jpg", exif_bytes=piexif.dump(exif))
+    _, source = images.read_taken_at(p)
+    assert source == "mtime"
+
+
+def test_taken_at_override_wins(tmp_path):
+    """For the rare render with no capture time, the caller supplies one."""
+    from datetime import datetime as _dt, timezone as _tz
+
+    p = make_jpeg(tmp_path / "override.jpg", exif_bytes=exif_with(offset="+00:00"))
+    out = images.prepare(p, taken_at=_dt(2018, 1, 25, 22, 11, 35, tzinfo=_tz.utc))
+    assert out.taken_at_source == "override"
+    assert (out.taken_at.year, out.taken_at.day) == (2018, 25)

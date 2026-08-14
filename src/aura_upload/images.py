@@ -54,24 +54,35 @@ def read_taken_at(path: Path, img: Image.Image | None = None):
         exif = img.getexif()
         sub = exif.get_ifd(EXIF_IFD) if exif else {}
     except Exception:
-        sub = {}
+        exif, sub = {}, {}
 
+    # Only DateTimeOriginal is trusted. The other EXIF date fields record when a
+    # file was written or digitised, not when the photograph was taken, so
+    # falling back to them would date photos plausibly and wrongly — worse than
+    # an obviously wrong date. When a render carries no capture time, the caller
+    # supplies one with --taken-at; the catalog usually knows it even when the
+    # exported file does not.
     raw = (sub or {}).get(DATETIME_ORIGINAL)
     if raw:
         try:
             dt = datetime.strptime(str(raw).strip(), "%Y:%m:%d %H:%M:%S")
-            subsec = str(sub.get(SUBSEC_TIME_ORIGINAL) or "").strip()
+        except ValueError:
+            dt = None
+
+        if dt:
+            subsec = str((sub or {}).get(SUBSEC_TIME_ORIGINAL) or "").strip()
             if subsec.isdigit():
                 dt = dt.replace(microsecond=int(subsec.ljust(3, "0")[:3]) * 1000)
 
-            offset = str(sub.get(OFFSET_TIME_ORIGINAL) or "").strip()
+            offset = str((sub or {}).get(OFFSET_TIME_ORIGINAL) or "").strip()
             if offset:
-                dt = dt.replace(tzinfo=datetime.strptime(offset, "%z").tzinfo)
+                try:
+                    dt = dt.replace(tzinfo=datetime.strptime(offset, "%z").tzinfo)
+                except ValueError:
+                    dt = dt.astimezone()
             else:
                 dt = dt.astimezone()
             return dt.astimezone(timezone.utc), "exif"
-        except ValueError:
-            pass
 
     log.warning(
         "%s has no usable EXIF DateTimeOriginal; falling back to file mtime, "
@@ -81,13 +92,17 @@ def read_taken_at(path: Path, img: Image.Image | None = None):
     return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc), "mtime"
 
 
-def prepare(path: Path, max_long_edge: int = 2048, quality: int = 90) -> PreparedImage:
+def prepare(path: Path, max_long_edge: int = 2048, quality: int = 90,
+            taken_at: datetime | None = None) -> PreparedImage:
     try:
         img = Image.open(path)
     except Exception as e:
         raise ImageError(f"{path.name}: not a readable image ({e})") from e
 
-    taken_at, source = read_taken_at(path, img)
+    if taken_at:
+        source = "override"
+    else:
+        taken_at, source = read_taken_at(path, img)
 
     # Bake the EXIF rotation into the pixels and declare orientation 1, rather
     # than trusting Aura to honour the tag.

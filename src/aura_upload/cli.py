@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import images
@@ -121,6 +122,12 @@ def cmd_upload(args, cfg):
     if args.dry_run:
         print("(dry run — nothing will be uploaded)\n")
 
+    taken_override = None
+    if args.taken_at:
+        taken_override = datetime.fromisoformat(args.taken_at)
+        if taken_override.tzinfo is None:
+            taken_override = taken_override.replace(tzinfo=timezone.utc)
+
     results, failures, skipped = [], 0, []
     for i, path in enumerate(paths, 1):
         local_id = args.local_id or images.content_identifier(path)
@@ -130,7 +137,8 @@ def cmd_upload(args, cfg):
             print(f"  [{i}/{len(paths)}] {path.name}: already on the frame, skipping")
             continue
         try:
-            prepared = images.prepare(path, cfg.max_long_edge, cfg.jpeg_quality)
+            prepared = images.prepare(path, cfg.max_long_edge, cfg.jpeg_quality,
+                                      taken_at=taken_override)
             label = (
                 f"  [{i}/{len(paths)}] {path.name}  {prepared.width}x{prepared.height}  "
                 f"{len(prepared.data)/1024:.0f}KB  taken {prepared.taken_at:%Y-%m-%d} "
@@ -249,6 +257,9 @@ def build_parser() -> argparse.ArgumentParser:
     up.add_argument("--keep-going", action="store_true", help="continue past failures")
     up.add_argument("--delay", type=float, default=0.0, help="seconds between uploads")
     up.add_argument("--max", type=int, help="stop after this many files")
+    up.add_argument("--taken-at",
+                    help="capture time to record, ISO 8601, when the file has "
+                         "no usable EXIF date")
     up.add_argument("--landscape", choices=FIT_MODES,
                     help="override how wide photos are presented")
     up.add_argument("--portrait", choices=FIT_MODES,
